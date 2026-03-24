@@ -16,15 +16,15 @@
  */
 package org.sonar.python.checks;
 
-import java.util.Map;
-import java.util.Optional;
+import java.util.List;
 import org.sonar.check.Rule;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
 import org.sonar.plugins.python.api.quickfix.PythonQuickFix;
-import org.sonar.plugins.python.api.symbols.Symbol;
 import org.sonar.plugins.python.api.tree.QualifiedExpression;
 import org.sonar.plugins.python.api.tree.Tree;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatcher;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatchers;
 import org.sonar.python.quickfix.TextEditUtils;
 
 @Rule(key = "S6730")
@@ -32,15 +32,17 @@ public class DeprecatedNumpyTypesCheck extends PythonSubscriptionCheck {
 
   private static final String MESSAGE = "Replace this deprecated \"numpy\" type alias with the builtin type \"%s\".";
   private static final String QUICK_FIX_MESSAGE = "Replace with %s.";
-  private static final Map<String, String> TYPE_TO_CHECK = Map.of(
-      "numpy.bool", "bool",
-      "numpy.int", "int",
-      "numpy.float", "float",
-      "numpy.complex", "complex",
-      "numpy.object", "object",
-      "numpy.str", "str",
-      "numpy.long", "int",
-      "numpy.unicode", "str");
+
+  private record DeprecatedType(TypeMatcher matcher, String replacement) {}
+
+  private static final List<DeprecatedType> DEPRECATED_TYPES = List.of(
+    new DeprecatedType(TypeMatchers.withFQN("numpy.int"), "int"),
+    new DeprecatedType(TypeMatchers.withFQN("numpy.float"), "float"),
+    new DeprecatedType(TypeMatchers.withFQN("numpy.complex"), "complex"),
+    new DeprecatedType(TypeMatchers.withFQN("numpy.object"), "object"),
+    new DeprecatedType(TypeMatchers.withFQN("numpy.str"), "str"),
+    new DeprecatedType(TypeMatchers.withFQN("numpy.long"), "int"),
+    new DeprecatedType(TypeMatchers.withFQN("numpy.unicode"), "str"));
 
   @Override
   public void initialize(Context context) {
@@ -50,13 +52,15 @@ public class DeprecatedNumpyTypesCheck extends PythonSubscriptionCheck {
 
   private static void checkForDeprecatedTypesNames(SubscriptionContext ctx) {
     QualifiedExpression expression = (QualifiedExpression) ctx.syntaxNode();
-    Optional.ofNullable(expression.symbol())
-        .map(Symbol::fullyQualifiedName)
-        .map(TYPE_TO_CHECK::get)
-        .ifPresent(type -> raiseIssue(expression, type, ctx));
+    for (DeprecatedType deprecatedType : DEPRECATED_TYPES) {
+      if (deprecatedType.matcher().isTrueFor(expression, ctx)) {
+        raiseIssue(expression, deprecatedType.replacement(), ctx);
+        return;
+      }
+    }
   }
 
-  private static void raiseIssue(Tree expression, String replacementType, SubscriptionContext ctx) {
+  private static void raiseIssue(QualifiedExpression expression, String replacementType, SubscriptionContext ctx) {
     PreciseIssue issue = ctx.addIssue(expression, String.format(MESSAGE, replacementType));
     PythonQuickFix quickFix = PythonQuickFix.newQuickFix(
         String.format(QUICK_FIX_MESSAGE, replacementType),

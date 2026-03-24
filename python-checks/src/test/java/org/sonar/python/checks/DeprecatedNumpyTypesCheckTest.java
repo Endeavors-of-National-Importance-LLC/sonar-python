@@ -55,7 +55,6 @@ class DeprecatedNumpyTypesCheckTest {
   
   private static Stream<Arguments> numpyTypeProvider(){
     return Stream.of(
-      Arguments.of("np.bool", "(True)", "bool"),
       Arguments.of("np.int", "(42)", "int"),
       Arguments.of("np.float", "(4.2)", "float"),
       Arguments.of("np.complex", "(-2.0, -1.2)", "complex"),

@@ -2,8 +2,6 @@ import numpy as np
 
 
 def failure():
-    b = np.bool(True)  # Noncompliant {{Replace this deprecated "numpy" type alias with the builtin type "bool".}}
-    #   ^^^^^^^
     i = np.int(42)  # Noncompliant {{Replace this deprecated "numpy" type alias with the builtin type "int".}}
     #   ^^^^^^
     f = np.float(4.2)  # Noncompliant {{Replace this deprecated "numpy" type alias with the builtin type "float".}}
@@ -21,8 +19,6 @@ def failure():
 
 def failure_import_as_z():
     import numpy as z
-    b = z.bool(True)  # Noncompliant
-    #   ^^^^^^
     i = z.int(42)  # Noncompliant
     #   ^^^^^
     f = z.float(4.2)  # Noncompliant
@@ -39,6 +35,8 @@ def failure_import_as_z():
     #   ^^^^^^^^^
 
 def success():
+    b = np.bool(True)
+    b = np.bool(False)
     b = True  # Compliant
     b = bool(True)  # Compliant
     i = 42  # Compliant
@@ -53,4 +51,13 @@ def success():
     l = int(123)  # Compliant
     u = "bar"  # Compliant
     u = str("bar")  # Compliant
+
+def success_np_bool_usages():
+    # np.bool is no longer deprecated (reintroduced in NumPy 2.x)
+    arr = np.zeros(2).astype(np.bool)
+    mask = np.ones((3, 4), dtype=np.bool)
+    empty = np.zeros_like(arr, dtype=np.bool)
+    if arr.dtype == np.bool:
+        pass
+    dtype = np.bool
 
