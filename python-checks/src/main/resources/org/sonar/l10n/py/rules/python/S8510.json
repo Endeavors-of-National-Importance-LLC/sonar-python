@@ -1,0 +1,23 @@
+{
+  "title": "Loop variables should not be reused in nested loops",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "CLEAR"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "suspicious"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-8510",
+  "sqKey": "S8510",
+  "scope": "All",
+  "quickfix": "unknown"
+}

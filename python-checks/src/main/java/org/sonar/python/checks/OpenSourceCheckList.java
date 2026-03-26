@@ -320,6 +320,7 @@ public class OpenSourceCheckList {
       NestedCollectionsCreationCheck.class,
       NestedConditionalExpressionCheck.class,
       NestedControlFlowDepthCheck.class,
+      NestedLoopVariableReuseCheck.class,
       NewStyleClassCheck.class,
       NonCallableCalledCheck.class,
       NonStandardCryptographicAlgorithmCheck.class,

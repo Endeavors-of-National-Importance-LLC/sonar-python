@@ -1,0 +1,31 @@
+<p>This rule raises an issue when a nested loop uses the same variable name as an outer loop, causing the inner loop to shadow the outer loop variable.</p>
+<h2>Why is this an issue?</h2>
+<p>In Python, loop variables persist after the loop completes and can be reassigned by inner loops without any warning. Unlike languages with
+block-scoped variables, Python allows inner loops to silently overwrite outer loop variables, making the outer variable inaccessible within the
+inner loop scope.</p>
+<p>This pattern almost always indicates a programmer error. Common scenarios include copying loop patterns without changing variable names, or
+confusion about Python's scoping rules. The shadowing happens silently without any compiler or runtime warning, making these bugs difficult to spot.</p>
+<h2>How to fix it</h2>
+<p>Use different variable names for each loop. Choose descriptive names that reflect what each variable represents.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+for i in range(10):
+    print(f"Outer: {i}")
+    for i in range(5):  # Noncompliant
+        print(f"Inner: {i}")
+    # i now contains 4, not the outer loop value
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+for i in range(10):
+    print(f"Outer: {i}")
+    for j in range(5):
+        print(f"Inner: {j}")
+    # i still contains the outer loop value
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/reference/executionmodel.html#naming-and-binding">Naming and Binding</a></li>
+</ul>
