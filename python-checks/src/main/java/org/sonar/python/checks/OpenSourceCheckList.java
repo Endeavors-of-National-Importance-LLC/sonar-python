@@ -398,6 +398,7 @@ public class OpenSourceCheckList {
       SkippedTestNoReasonCheck.class,
       SkLearnEstimatorDontInitializeEstimatedValuesCheck.class,
       SleepZeroInAsyncCheck.class,
+      SortedMinMaxCheck.class,
       SpecialMethodParamListCheck.class,
       SpecialMethodReturnTypeCheck.class,
       SQLQueriesCheck.class,

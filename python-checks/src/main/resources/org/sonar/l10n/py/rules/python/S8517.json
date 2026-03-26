@@ -1,0 +1,24 @@
+{
+  "title": "\"sorted()\" should not be used with indexing to find minimum or maximum values",
+  "type": "CODE_SMELL",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5 min"
+  },
+  "tags": [
+    "performance",
+    "pythonic"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-8517",
+  "sqKey": "S8517",
+  "scope": "All",
+  "quickfix": "targeted",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "EFFICIENT"
+  }
+}
