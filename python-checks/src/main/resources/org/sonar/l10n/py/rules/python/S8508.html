@@ -1,0 +1,60 @@
+<p>This rule raises an issue when a mutable object is used as the default value in <code>dict.fromkeys()</code> or <code>contextvars.ContextVar()</code>.</p>
+<h2>Why is this an issue?</h2>
+<p>In Python, when you pass a mutable object as a default value to certain constructs, all instances share the same object reference rather than getting
+independent copies. This creates unintended shared state that leads to subtle mutation bugs.</p>
+<p>Python evaluates the default value expression once when the code is defined, not each time it is used. The same object instance is then reused
+across all keys or contexts.</p>
+<h3>The problem with <code>dict.fromkeys()</code></h3>
+<p>The <code>dict.fromkeys(keys, value)</code> method creates a dictionary with all specified keys pointing to the <em>same</em> <code>value</code>
+object. When this value is mutable (like a list or dictionary), all keys share the same object reference:</p>
+<pre>
+keys = ['a', 'b', 'c']
+my_dict = dict.fromkeys(keys, [])
+my_dict['a'].append(1)
+print(my_dict)  # {'a': [1], 'b': [1], 'c': [1]}
+</pre>
+<h3>The problem with <code>ContextVar()</code></h3>
+<p>When you create a <code>ContextVar</code> with a mutable default value, that same object is shared across all contexts, which is particularly
+problematic in concurrent code.</p>
+<h3>What is the potential impact?</h3>
+<ul>
+  <li><strong>Data corruption</strong>: changes intended for one key or context accidentally affect others</li>
+  <li><strong>Concurrency issues</strong>: in the case of <code>ContextVar</code>, shared mutable defaults can cause race conditions</li>
+  <li><strong>Test flakiness</strong>: tests may pass or fail inconsistently depending on execution order</li>
+</ul>
+<h2>How to fix it</h2>
+<p>For <code>dict.fromkeys()</code>, replace it with a dictionary comprehension that creates a new instance for each key. For
+<code>ContextVar()</code>, use a factory pattern or omit the mutable default.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+keys = ['a', 'b', 'c']
+my_dict = dict.fromkeys(keys, [])  # Noncompliant
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+keys = ['a', 'b', 'c']
+my_dict = {key: [] for key in keys}
+</pre>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="2" data-diff-type="noncompliant">
+from contextvars import ContextVar
+
+my_var = ContextVar('my_var', default=[])  # Noncompliant
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="2" data-diff-type="compliant">
+from contextvars import ContextVar
+
+my_var: ContextVar[list] = ContextVar('my_var')
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/stdtypes.html#dict.fromkeys"><code>dict.fromkeys()</code> method</a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/contextvars.html#contextvars.ContextVar"><code>contextvars.ContextVar</code></a></li>
+</ul>
+<h3>Related rules</h3>
+<ul>
+  <li>S2824 - Function parameters should not have mutable default values</li>
+</ul>

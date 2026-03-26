@@ -316,6 +316,7 @@ public class OpenSourceCheckList {
       ModifiedParameterValueCheck.class,
       ModuleNameCheck.class,
       MultipleWhitespaceCheck.class,
+      MutableDefaultValueCheck.class,
       NeedlessPassCheck.class,
       NestedCollectionsCreationCheck.class,
       NestedConditionalExpressionCheck.class,
