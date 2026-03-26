@@ -21,10 +21,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -74,6 +71,21 @@ public class HardCodedCredentialsCheck extends PythonSubscriptionCheck {
   private static final TypeMatcher ENVIRON_MATCHER = TypeMatchers.isType("os.environ");
   private static final TypeMatcher GET_ENVIRON_MATCHER = TypeMatchers.isType("typing.Mapping.get");
 
+  private static final TypeMatcher SENSITIVE_ARG_2_MATCHER = TypeMatchers.any(
+    TypeMatchers.isType("mysql.connector.connect"),
+    TypeMatchers.isType("mysql.connector.connection.MySQLConnection"),
+    TypeMatchers.isType("pymysql.connect"),
+    TypeMatchers.isType("pymysql.connections.connect"),
+    TypeMatchers.isType("pymysql.connections.Connection"),
+    TypeMatchers.isType("psycopg2.connect"),
+    // pgdb.connect is a module whose connect function has FQN pgdb.connect.connect.
+    // isType can't resolve it through the type table, so use withFQN to match on the FQN directly.
+    TypeMatchers.withFQN("pgdb.connect.connect"));
+
+  private static final TypeMatcher SENSITIVE_ARG_5_MATCHER = TypeMatchers.any(
+    TypeMatchers.isType("pg.DB"),
+    TypeMatchers.isType("pg.connect"));
+
   @RuleProperty(
     key = "credentialWords",
     description = "Comma separated list of words identifying potential credentials",
@@ -81,25 +93,6 @@ public class HardCodedCredentialsCheck extends PythonSubscriptionCheck {
   public String credentialWords = DEFAULT_CREDENTIAL_WORDS;
   private List<Pattern> variablePatterns = null;
   private List<Pattern> literalPatterns = null;
-  private Map<String, Integer> sensitiveArgumentByFQN;
-
-  private Map<String, Integer> sensitiveArgumentByFQN() {
-    if (sensitiveArgumentByFQN == null) {
-      sensitiveArgumentByFQN = new HashMap<>();
-      sensitiveArgumentByFQN.put("mysql.connector.connect", 2);
-      sensitiveArgumentByFQN.put("mysql.connector.connection.MySQLConnection", 2);
-      sensitiveArgumentByFQN.put("pymysql.connect", 2);
-      sensitiveArgumentByFQN.put("pymysql.connections.connect", 2);
-      sensitiveArgumentByFQN.put("pymysql.connections.Connection", 2);
-      sensitiveArgumentByFQN.put("psycopg2.connect", 2);
-      sensitiveArgumentByFQN.put("pgdb.connect", 2);
-      sensitiveArgumentByFQN.put("pgdb.connect.connect", 2);
-      sensitiveArgumentByFQN.put("pg.DB", 5);
-      sensitiveArgumentByFQN.put("pg.connect", 5);
-      sensitiveArgumentByFQN = Collections.unmodifiableMap(sensitiveArgumentByFQN);
-    }
-    return sensitiveArgumentByFQN;
-  }
 
   private Stream<Pattern> variablePatterns() {
     if (variablePatterns == null) {
@@ -175,13 +168,15 @@ public class HardCodedCredentialsCheck extends PythonSubscriptionCheck {
     }
   }
 
-  private void handleCallExpression(CallExpression callExpression, SubscriptionContext ctx) {
+  private static void handleCallExpression(CallExpression callExpression, SubscriptionContext ctx) {
     if (callExpression.arguments().isEmpty()) {
       return;
     }
-    Symbol calleeSymbol = callExpression.calleeSymbol();
-    if (calleeSymbol != null && sensitiveArgumentByFQN().containsKey(calleeSymbol.fullyQualifiedName())) {
-      checkSensitiveArgument(callExpression, sensitiveArgumentByFQN().get(calleeSymbol.fullyQualifiedName()), ctx);
+    Expression callee = callExpression.callee();
+    if (SENSITIVE_ARG_2_MATCHER.isTrueFor(callee, ctx)) {
+      checkSensitiveArgument(callExpression, 2, ctx);
+    } else if (SENSITIVE_ARG_5_MATCHER.isTrueFor(callee, ctx)) {
+      checkSensitiveArgument(callExpression, 5, ctx);
     }
   }
 
