@@ -163,6 +163,30 @@ class TypeVarTest[T]:
     def unknow_generic(self):
         a: list[X] = ... # Noncompliant
 
+class GenericClassBuiltinBound[ItemType, ItemTypeId: str]:
+    pass
+
+class BaseBound:
+    pass
+
+class GenericClassUserDefinedBound[FooT: BaseBound]:
+    pass
+
+class UserBase:
+    pass
+
+class UserGeneric[UBased: UserBase]:
+    def __init__(self, value: UBased) -> None:
+        self.value = value
+
+from collections.abc import Callable
+type Validator[V] = Callable[[V], V]
+
+class Serializable:
+    pass
+
+type SerializableList[S: Serializable] = list[S]
+
 # FP with python 2 syntax for exception handling
 try:
   ""

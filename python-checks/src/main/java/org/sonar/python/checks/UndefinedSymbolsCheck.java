@@ -31,7 +31,9 @@ import org.sonar.plugins.python.api.tree.FileInput;
 import org.sonar.plugins.python.api.tree.ImportFrom;
 import org.sonar.plugins.python.api.tree.Name;
 import org.sonar.plugins.python.api.tree.Tree;
+import org.sonar.plugins.python.api.tree.TypeAliasStatement;
 import org.sonar.plugins.python.api.tree.TypeParams;
+import org.sonar.python.semantic.BuiltinSymbols;
 import org.sonar.python.tree.TreeUtils;
 
 @Rule(key = "S5953")
@@ -72,18 +74,21 @@ public class UndefinedSymbolsCheck extends PythonSubscriptionCheck {
 
     @Override
     public void visitName(Name name) {
-      if (name.isVariable() && name.symbol() == null && !name.name().startsWith("_") && !isTypeVar(name)) {
+      if (name.isVariable() && name.symbolV2() == null && !BuiltinSymbols.all().contains(name.name()) && !name.name().startsWith("_") && !isTypeVar(name)) {
         nameIssues.computeIfAbsent(name.name(), k -> new ArrayList<>()).add(name);
       }
     }
 
     private static boolean isTypeVar(Name name) {
-      return TreeUtils.firstAncestor(name, tree -> classWithTypeVar(tree, name)) != null;
+      return TreeUtils.firstAncestor(name, tree -> hasTypeVarInScope(tree, name)) != null;
     }
 
-    private static boolean classWithTypeVar(Tree tree, Name name) {
+    private static boolean hasTypeVarInScope(Tree tree, Name name) {
       if (tree instanceof ClassDef classDef) {
         return hasTypeVar(classDef.typeParams(), name);
+      }
+      if (tree instanceof TypeAliasStatement typeAliasStatement) {
+        return hasTypeVar(typeAliasStatement.typeParams(), name);
       }
       return false;
     }

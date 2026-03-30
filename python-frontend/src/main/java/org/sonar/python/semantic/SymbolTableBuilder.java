@@ -342,6 +342,7 @@ public class SymbolTableBuilder extends BaseTreeVisitor {
     @Override
     public void visitTypeAliasStatement(TypeAliasStatement typeAliasStatement) {
       addBindingUsage(typeAliasStatement.name(), Usage.Kind.TYPE_ALIAS_DECLARATION);
+      createTypeParameters(typeAliasStatement.typeParams());
       super.visitTypeAliasStatement(typeAliasStatement);
     }
 
@@ -697,6 +698,7 @@ public class SymbolTableBuilder extends BaseTreeVisitor {
     public void visitClassDef(ClassDef pyClassDefTree) {
       scan(pyClassDefTree.args());
       scan(pyClassDefTree.decorators());
+      scan(pyClassDefTree.typeParams());
       enterScope(pyClassDefTree);
       scan(pyClassDefTree.name());
       resolveTypeHierarchy(pyClassDefTree, pyClassDefTree.name().symbol(), pythonFile, scopesByRootTree.get(fileInput).symbolsByName);

@@ -35,6 +35,7 @@ import org.sonar.plugins.python.api.symbols.Symbol;
 import org.sonar.plugins.python.api.symbols.Usage;
 import org.sonar.plugins.python.api.tree.BaseTreeVisitor;
 import org.sonar.plugins.python.api.tree.CallExpression;
+import org.sonar.plugins.python.api.tree.ClassDef;
 import org.sonar.plugins.python.api.tree.ComprehensionExpression;
 import org.sonar.plugins.python.api.tree.DictCompExpression;
 import org.sonar.plugins.python.api.tree.ExpressionStatement;
@@ -44,6 +45,7 @@ import org.sonar.plugins.python.api.tree.LambdaExpression;
 import org.sonar.plugins.python.api.tree.Name;
 import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.plugins.python.api.tree.Tuple;
+import org.sonar.plugins.python.api.tree.TypeAliasStatement;
 import org.sonar.python.PythonTestUtils;
 import org.sonar.python.TestPythonVisitorRunner;
 import org.sonar.python.tree.TreeUtils;
@@ -634,6 +636,33 @@ class SymbolTableBuilderTest {
     assertThat(symbolByName).hasSize(1).containsKey("M");
     assertThat(symbolByName.get("M").usages()).hasSize(2);
     assertThat(symbolByName.get("M").usages().get(0).kind()).isEqualTo(Usage.Kind.TYPE_ALIAS_DECLARATION);
+  }
+
+  @Test
+  void class_type_param_bound_resolved_in_enclosing_scope() {
+    FileInput tree = PythonTestUtils.parse(
+      "class BaseBound:",
+      "    pass",
+      "class Foo[T: BaseBound]:",
+      "    pass"
+    );
+    ClassDef fooClass = (ClassDef) PythonTestUtils.getLastDescendant(tree, t -> t.is(Tree.Kind.CLASSDEF));
+    Name boundName = (Name) fooClass.typeParams().typeParamsList().get(0).typeAnnotation().expression();
+    assertThat(boundName.name()).isEqualTo("BaseBound");
+    assertThat(boundName.symbol()).isNotNull();
+    assertThat(boundName.symbol().name()).isEqualTo("BaseBound");
+  }
+
+  @Test
+  void type_alias_type_params_registered() {
+    FileInput tree = PythonTestUtils.parse("type Alias[T] = list[T]");
+    TypeAliasStatement typeAlias = (TypeAliasStatement) tree.statements().statements().get(0);
+    Name typeParamName = typeAlias.typeParams().typeParamsList().get(0).name();
+    assertThat(typeParamName.name()).isEqualTo("T");
+    assertThat(typeParamName.symbol()).isNotNull();
+    assertThat(typeParamName.symbol().usages())
+      .extracting(Usage::kind)
+      .contains(Usage.Kind.TYPE_PARAM_DECLARATION);
   }
 
   private static class TestVisitor extends BaseTreeVisitor {

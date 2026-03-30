@@ -22,12 +22,15 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.sonar.plugins.python.api.symbols.v2.SymbolV2;
+import org.sonar.plugins.python.api.symbols.v2.UsageV2;
 import org.sonar.plugins.python.api.tree.AssignmentStatement;
+import org.sonar.plugins.python.api.tree.ClassDef;
 import org.sonar.plugins.python.api.tree.FileInput;
 import org.sonar.plugins.python.api.tree.FunctionDef;
 import org.sonar.plugins.python.api.tree.ImportName;
 import org.sonar.plugins.python.api.tree.Name;
 import org.sonar.plugins.python.api.tree.Tree;
+import org.sonar.plugins.python.api.tree.TypeAliasStatement;
 import org.sonar.python.PythonTestUtils;
 import org.sonar.python.tree.TreeUtils;
 
@@ -259,6 +262,33 @@ class SymbolTableBuilderV2Test {
       .containsExactlyInAnyOrder("x");
   }
 
+
+  @Test
+  void class_type_param_bound_is_resolved_in_enclosing_scope() {
+    FileInput fileInput = PythonTestUtils.parse("""
+        class BaseBound:
+            pass
+        class Foo[T: BaseBound]:
+            pass
+        """);
+    new SymbolTableBuilderV2(fileInput).build();
+    ClassDef fooClass = (ClassDef) fileInput.statements().statements().get(1);
+    Name boundName = (Name) fooClass.typeParams().typeParamsList().get(0).typeAnnotation().expression();
+    Assertions.assertThat(boundName.symbolV2()).isNotNull();
+    Assertions.assertThat(boundName.symbolV2().name()).isEqualTo("BaseBound");
+  }
+
+  @Test
+  void type_alias_type_params_are_registered() {
+    FileInput fileInput = PythonTestUtils.parse("type Alias[T] = list[T]");
+    new SymbolTableBuilderV2(fileInput).build();
+    TypeAliasStatement typeAlias = (TypeAliasStatement) fileInput.statements().statements().get(0);
+    Name typeParamName = typeAlias.typeParams().typeParamsList().get(0).name();
+    Assertions.assertThat(typeParamName.symbolV2()).isNotNull();
+    Assertions.assertThat(typeParamName.symbolV2().usages())
+      .extracting(UsageV2::kind)
+      .contains(UsageV2.Kind.TYPE_PARAM_DECLARATION);
+  }
 
   private static void assertNameSymbol(Name name, String expectedSymbolName, int expectedUsagesCount) {
     var symbol = name.symbolV2();

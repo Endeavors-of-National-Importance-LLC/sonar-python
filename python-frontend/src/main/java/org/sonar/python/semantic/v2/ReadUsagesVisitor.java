@@ -121,6 +121,7 @@ public class ReadUsagesVisitor extends ScopeVisitor {
   public void visitClassDef(ClassDef classDef) {
     scan(classDef.args());
     scan(classDef.decorators());
+    scan(classDef.typeParams());
     enterScope(classDef);
     scan(classDef.name());
     scan(classDef.body());

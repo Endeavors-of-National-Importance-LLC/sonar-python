@@ -20,13 +20,11 @@ def non_compliant_1():
     type MyAlias[T] = dict[T, _R]  # Noncompliant
     #    ^^^^^^^              ^^<    {{Use of "TypeVar" here.}}
 
-    M = TypeVar("M")
-    #   ^^^^^^^^^^^^>           {{"TypeVar" is assigned here.}}
-    type MyAlias[M] = set[M]  # Noncompliant
-    #    ^^^^^^^          ^<    {{Use of "TypeVar" here.}}
 
 
 def compliant(AType):
     type MyAlias[T] = dict[T, str]
     type MyAlias = set[str]
     type MyAlias = set[AType]
+    M = TypeVar("M")
+    type MyAlias[M] = set[M]  # Compliant: M in set[M] refers to the type parameter, not the TypeVar

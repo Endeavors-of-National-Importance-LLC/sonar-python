@@ -171,6 +171,7 @@ public class WriteUsagesVisitor extends ScopeVisitor {
   @Override
   public void visitTypeAliasStatement(TypeAliasStatement typeAliasStatement) {
     currentScope().addBindingUsage(typeAliasStatement.name(), UsageV2.Kind.TYPE_ALIAS_DECLARATION);
+    createTypeParameters(typeAliasStatement.typeParams());
     super.visitTypeAliasStatement(typeAliasStatement);
   }
 
