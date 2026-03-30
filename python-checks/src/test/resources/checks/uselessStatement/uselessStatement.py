@@ -6,6 +6,8 @@ class MyClass:
 
     def method(self): ...
 
+    def __eq__(self, other): ...
+
     @classmethod
     def class_method(cls): ...
 
@@ -149,7 +151,7 @@ def airflow_ignore_context_false_negative():
         ping = HttpOperator(endpoint="http://example.com/update/")
         download = HttpOperator(endpoint="http://example.com/download/")
         upload = HttpOperator(endpoint="http://example.com/upload/")
-        ping # Noncompliant
+        ping
         download >> upload
 
 from airflow.decorators import dag
@@ -165,7 +167,7 @@ def airflow_decorator_multiple_statements():
     download = HttpOperator(endpoint="http://example.com/download/")
     upload = HttpOperator(endpoint="http://example.com/upload/")
     download >> upload
-    ping # Noncompliant
+    ping
     ping >> upload
 
 def airflow_nested_with():
@@ -174,7 +176,7 @@ def airflow_nested_with():
             ping = HttpOperator(endpoint="http://example.com/update/")
             download = HttpOperator(endpoint="http://example.com/download/")
             upload = HttpOperator(endpoint="http://example.com/upload/")
-            ping # Noncompliant
+            ping
             download >> upload
 
 @dag
@@ -189,3 +191,19 @@ def airflow_ignore_context_not_operator():
         some_other_var = True
         some_var # Noncompliant
         some_other_var
+
+from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
+from airflow.models.baseoperator import BaseOperator as AirflowBaseOperator
+
+_module_dag = DAG(dag_id="example_dag", schedule_interval=None)
+_ecs_task = EcsRunTaskOperator(task_id="generate_yaml", dag=_module_dag)
+_ecs_task
+
+_http_task = HttpOperator(task_id="http", endpoint="/", dag=_module_dag)
+_http_task
+
+class _CustomOperator(AirflowBaseOperator):
+    def execute(self, context): pass
+
+_custom_task = _CustomOperator(task_id="custom", dag=_module_dag)
+_custom_task

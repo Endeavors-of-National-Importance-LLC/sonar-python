@@ -17,24 +17,23 @@
 package org.sonar.python.checks;
 
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Stream;
 import org.sonar.check.Rule;
 import org.sonar.check.RuleProperty;
 import org.sonar.plugins.python.api.PythonSubscriptionCheck;
 import org.sonar.plugins.python.api.SubscriptionContext;
-import org.sonar.plugins.python.api.symbols.ClassSymbol;
-import org.sonar.plugins.python.api.symbols.FunctionSymbol;
-import org.sonar.plugins.python.api.symbols.Symbol;
-import org.sonar.plugins.python.api.symbols.Usage;
+import org.sonar.plugins.python.api.symbols.v2.SymbolV2;
+import org.sonar.plugins.python.api.symbols.v2.UsageV2;
+import org.sonar.plugins.python.api.types.v2.FunctionType;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatcher;
+import org.sonar.plugins.python.api.types.v2.matchers.TypeMatchers;
 import org.sonar.plugins.python.api.tree.BinaryExpression;
 import org.sonar.plugins.python.api.tree.CallExpression;
 import org.sonar.plugins.python.api.tree.ClassDef;
 import org.sonar.plugins.python.api.tree.ConditionalExpression;
+import org.sonar.plugins.python.api.tree.Decorator;
 import org.sonar.plugins.python.api.tree.Expression;
 import org.sonar.plugins.python.api.tree.FileInput;
 import org.sonar.plugins.python.api.tree.FunctionDef;
@@ -87,9 +86,21 @@ public class UselessStatementCheck extends PythonSubscriptionCheck {
 
   private static final List<Kind> unaryExpressionKinds = Arrays.asList(Kind.UNARY_PLUS, Kind.UNARY_MINUS, Kind.BITWISE_COMPLEMENT, Kind.NOT);
 
-  private static final Set<String> ignoredContexts = new HashSet<>(List.of("contextlib.suppress"));
-
   private static final String MESSAGE = "Remove or refactor this statement; it has no side effects.";
+
+  private static final TypeMatcher EXCEPTION_CLASS_TYPE_MATCHER = TypeMatchers.isOrExtendsType("builtins.BaseException");
+
+  private static final TypeMatcher CONTEXTLIB_SUPPRESS_TYPE_MATCHER = TypeMatchers.isType("contextlib.suppress");
+
+  private static final TypeMatcher AIRFLOW_TYPE_MATCHER = TypeMatchers.any(
+    TypeMatchers.isObjectInstanceOf("airflow.models.baseoperator.BaseOperator"),
+    TypeMatchers.isObjectInstanceOf("airflow.models.dag.DAG"),
+    TypeMatchers.isObjectInstanceOf("airflow.models.taskmixin.DependencyMixin")
+  );
+
+  private static final TypeMatcher DAG_CLASS_TYPE_MATCHER = TypeMatchers.isType("airflow.models.dag.DAG");
+
+  private static final TypeMatcher DAG_DECORATOR_TYPE_MATCHER = TypeMatchers.isType("airflow.decorators.dag");
 
   @Override
   public void initialize(Context context) {
@@ -118,18 +129,18 @@ public class UselessStatementCheck extends PythonSubscriptionCheck {
     if (parent == null || !parent.is(Kind.EXPRESSION_STMT)) {
       return;
     }
-    if (isWithinIgnoredContext(tree)) {
+    if (isWithinIgnoredContext(tree, ctx)) {
       return;
     }
     // Safe cast because the rule only subscribes to expressions
-    if (isAnAirflowException((Expression) tree)) {
+    if (isAnAirflowException((Expression) tree, ctx)) {
       return;
     }
     ctx.addIssue(tree, MESSAGE);
   }
 
-  private static boolean isAnAirflowException(Expression expression) {
-    if (isWithinAirflowContext(expression)) {
+  private static boolean isAnAirflowException(Expression expression, SubscriptionContext ctx) {
+    if (isWithinAirflowContext(expression, ctx)) {
       StatementList statementList = (StatementList) TreeUtils.firstAncestorOfKind(expression, Kind.STATEMENT_LIST);
       return Optional.ofNullable(statementList).map(StatementList::statements).map(statements -> statements.get(statements.size() - 1))
         .filter(lastStatement -> lastStatement.equals(TreeUtils.firstAncestorOfKind(expression, Kind.EXPRESSION_STMT))).isPresent();
@@ -137,37 +148,36 @@ public class UselessStatementCheck extends PythonSubscriptionCheck {
     return false;
   }
 
-  private static boolean isWithinIgnoredContext(Tree tree) {
+  private static boolean isWithinIgnoredContext(Tree tree, SubscriptionContext ctx) {
     Tree withParent = TreeUtils.firstAncestorOfKind(tree, Kind.WITH_STMT);
     if (withParent != null) {
       WithStatement withStatement = (WithStatement) withParent;
       return withStatement.withItems().stream()
         .map(WithItem::test)
         .filter(item -> item.is(Kind.CALL_EXPR))
-        .map(item -> ((CallExpression) item).calleeSymbol())
-        .filter(Objects::nonNull)
-        .anyMatch(s -> ignoredContexts.contains(s.fullyQualifiedName()));
+        .map(item -> ((CallExpression) item).callee())
+        .anyMatch(callee -> CONTEXTLIB_SUPPRESS_TYPE_MATCHER.isTrueFor(callee, ctx));
     }
     return false;
   }
 
-  private static boolean isWithinAirflowContext(Tree tree) {
+  private static boolean isWithinAirflowContext(Tree tree, SubscriptionContext ctx) {
     Tree withParent = TreeUtils.firstAncestorOfKind(tree, Kind.WITH_STMT);
     while (withParent != null) {
       WithStatement withStatement = (WithStatement) withParent;
       if (withStatement.withItems().stream()
         .map(WithItem::test)
         .filter(item -> item.is(Kind.CALL_EXPR))
-        .map(item -> ((CallExpression) item).calleeSymbol())
-        .filter(Objects::nonNull)
-        .anyMatch(s -> "airflow.DAG".equals(s.fullyQualifiedName()))) {
+        .map(item -> ((CallExpression) item).callee())
+        .anyMatch(callee -> DAG_CLASS_TYPE_MATCHER.isTrueFor(callee, ctx))) {
         return true;
       }
       withParent = TreeUtils.firstAncestorOfKind(withParent, Kind.WITH_STMT);
     }
     FunctionDef funcParent = (FunctionDef) TreeUtils.firstAncestorOfKind(tree, Kind.FUNCDEF);
-    return funcParent != null && funcParent.decorators().stream().map(deco -> TreeUtils.getSymbolFromTree(deco.expression())).filter(Optional::isPresent)
-      .anyMatch(symbol -> "airflow.decorators.dag".equals(symbol.get().fullyQualifiedName()));
+    return funcParent != null && funcParent.decorators().stream()
+      .map(Decorator::expression)
+      .anyMatch(expr -> DAG_DECORATOR_TYPE_MATCHER.isTrueFor(expr, ctx));
   }
 
   private static boolean isBooleanExpressionWithCalls(Tree tree) {
@@ -192,16 +202,16 @@ public class UselessStatementCheck extends PythonSubscriptionCheck {
 
   private static void checkName(SubscriptionContext ctx) {
     Name name = (Name) ctx.syntaxNode();
-    Symbol symbol = name.symbol();
-    if (symbol != null && symbol.is(Symbol.Kind.CLASS)) {
-      ClassSymbol classSymbol = (ClassSymbol) symbol;
-      // Creating an exception without raising it is covered by S3984
-      if (classSymbol.canBeOrExtend("BaseException")) {
-        return;
-      }
+    // Creating an exception without raising it is covered by S3984
+    if (EXCEPTION_CLASS_TYPE_MATCHER.isTrueFor(name, ctx)) {
+      return;
     }
-    if (symbol != null && symbol.usages().stream().anyMatch(u -> u.kind().equals(Usage.Kind.IMPORT)) && symbol.usages().size() == 2) {
-      // Avoid raising on useless statements made to suppress issues due to "unused" import
+    // Avoid raising on useless statements made to suppress issues due to "unused" import
+    SymbolV2 symbolV2 = name.symbolV2();
+    if (symbolV2 != null && symbolV2.usages().stream().anyMatch(u -> u.kind() == UsageV2.Kind.IMPORT) && symbolV2.usages().size() == 2) {
+      return;
+    }
+    if (AIRFLOW_TYPE_MATCHER.isTrueFor(name, ctx)) {
       return;
     }
     checkNode(ctx);
@@ -209,8 +219,8 @@ public class UselessStatementCheck extends PythonSubscriptionCheck {
 
   private static void checkQualifiedExpression(SubscriptionContext ctx) {
     QualifiedExpression qualifiedExpression = (QualifiedExpression) ctx.syntaxNode();
-    Symbol symbol = qualifiedExpression.symbol();
-    if (symbol != null && symbol.is(Symbol.Kind.FUNCTION) && ((FunctionSymbol) symbol).decorators().stream().noneMatch(d -> d.matches("property"))) {
+    // Only raise on functions; properties are already resolved to their return type by the type inference engine
+    if (qualifiedExpression.typeV2() instanceof FunctionType) {
       checkNode(ctx);
     }
   }
