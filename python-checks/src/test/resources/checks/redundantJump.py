@@ -340,3 +340,47 @@ def match_statement_single_return(value):
     match value:
       case "42":
         return  # OK
+
+
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _(mo, engine):
+    _df = mo.sql(f"""SELECT * FROM table""", engine=engine)
+    return  # OK
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("# Dashboard")
+    return  # OK
+
+
+@app.cell
+def _(mo, condition):
+    if condition:
+        mo.md("Condition met")
+        return  # OK
+    mo.md("Condition not met")
+    return  # OK
+
+
+@app.function
+def helper():
+    x = 1
+    return  # OK
+
+
+@app.function
+def helper_with_condition(condition):
+    if condition:
+        return  # OK
+    return  # OK
+
+
+def not_a_marimo_cell():
+    x = 1
+    return  # Noncompliant

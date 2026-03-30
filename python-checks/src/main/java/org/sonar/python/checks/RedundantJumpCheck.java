@@ -31,6 +31,7 @@ import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.plugins.python.api.tree.Tree.Kind;
 import org.sonar.python.cfg.PythonCfgBranchingBlock;
 import org.sonar.plugins.python.api.quickfix.PythonQuickFix;
+import org.sonar.python.checks.utils.MarimoUtils;
 import org.sonar.python.quickfix.TextEditUtils;
 import org.sonar.python.tree.TreeUtils;
 
@@ -54,7 +55,7 @@ public class RedundantJumpCheck extends PythonSubscriptionCheck {
       .forEach(cfgBlock -> {
         List<Tree> elements = cfgBlock.elements();
         Tree lastElement = elements.get(elements.size() - 1);
-        if (!isException(lastElement)) {
+        if (!isException(lastElement, ctx)) {
           var issue = ctx.addIssue(lastElement, message(lastElement));
           addQuickFix(lastElement, issue);
 
@@ -92,11 +93,12 @@ public class RedundantJumpCheck extends PythonSubscriptionCheck {
     return lastElement.is(Kind.RETURN_STMT) && !((ReturnStatement) lastElement).expressions().isEmpty();
   }
 
-  private static boolean isException(Tree lastElement) {
+  private static boolean isException(Tree lastElement, SubscriptionContext ctx) {
     return lastElement.is(Kind.RAISE_STMT)
       || isReturnWithExpression(lastElement)
       || isInsideSingleStatementBlock(lastElement)
-      || hasTryAncestor(lastElement);
+      || hasTryAncestor(lastElement)
+      || MarimoUtils.isTreeInMarimoDecoratedFunction(lastElement, ctx);
   }
 
   // ignore jumps in try statement because CFG is not precise
