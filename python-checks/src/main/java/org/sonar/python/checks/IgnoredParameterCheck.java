@@ -47,7 +47,11 @@ public class IgnoredParameterCheck extends PythonSubscriptionCheck {
       if (cfg == null) {
         return;
       }
-      LiveVariablesAnalysis lva = LiveVariablesAnalysis.analyze(cfg);
+      LiveVariablesAnalysis lva = ctx.lva(functionDef);
+      if (lva == null) {
+        return;
+      }
+
       Set<CfgBlock> unreachableBlocks = CfgUtils.unreachableBlocks(cfg);
       cfg.blocks().forEach(block -> {
         var unnecessaryAssignments = DeadStoreUtils.findUnnecessaryAssignments(block, lva.getLiveVariables(block), functionDef);

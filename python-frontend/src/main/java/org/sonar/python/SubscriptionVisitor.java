@@ -51,6 +51,7 @@ import org.sonar.plugins.python.api.tree.StringElement;
 import org.sonar.plugins.python.api.tree.Token;
 import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.plugins.python.api.tree.Tree.Kind;
+import org.sonar.python.cfg.fixpoint.LiveVariablesAnalysis;
 import org.sonar.python.regex.PythonAnalyzerRegexSource;
 import org.sonar.python.regex.PythonRegexIssueLocation;
 import org.sonar.python.regex.RegexContext;
@@ -210,6 +211,11 @@ public class SubscriptionVisitor {
     @Override
     public ControlFlowGraph cfg(Tree tree) {
       return pythonVisitorContext.cfg(tree);
+    }
+
+    @Override
+    public LiveVariablesAnalysis lva(Tree tree) {
+      return pythonVisitorContext.lva(tree);
     }
 
     @Override

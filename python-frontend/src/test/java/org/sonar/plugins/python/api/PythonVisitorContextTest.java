@@ -29,6 +29,7 @@ import org.sonar.plugins.python.api.tree.FunctionDef;
 import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.python.PythonTestUtils;
 import org.sonar.python.caching.CacheContextImpl;
+import org.sonar.python.cfg.fixpoint.LiveVariablesAnalysis;
 import org.sonar.python.index.Descriptor;
 import org.sonar.python.index.VariableDescriptor;
 import org.sonar.python.parser.PythonParser;
@@ -123,6 +124,40 @@ class PythonVisitorContextTest {
     assertThat(callGraph.getUsages("my_package.my_module.bar")).extracting(CallGraphNode::fqn)
       .containsExactly("my_package.my_module.foo");
 
+  }
+
+  @Test
+  void lva_returns_null_when_no_cfg() {
+    FileInput fileInput = PythonTestUtils.parse("def foo():\n  x = 1");
+    PythonFile pythonFile = pythonFile("my_module.py");
+    var ctx = new PythonVisitorContext.Builder(fileInput, pythonFile).build();
+
+    FunctionDef functionDef = (FunctionDef) PythonTestUtils.getAllDescendant(fileInput, t -> t.is(Tree.Kind.FUNCDEF)).get(0);
+    // A Name node has no CFG entry, so lva should return null
+    assertThat(ctx.lva(functionDef.name())).isNull();
+  }
+
+  @Test
+  void lva_returns_analysis_for_function_def() {
+    FileInput fileInput = PythonTestUtils.parse("def foo():\n  x = 1\n  return x");
+    PythonFile pythonFile = pythonFile("my_module.py");
+    var ctx = new PythonVisitorContext.Builder(fileInput, pythonFile).build();
+
+    FunctionDef functionDef = (FunctionDef) PythonTestUtils.getAllDescendant(fileInput, t -> t.is(Tree.Kind.FUNCDEF)).get(0);
+    LiveVariablesAnalysis lva = ctx.lva(functionDef);
+    assertThat(lva).isNotNull();
+  }
+
+  @Test
+  void lva_caches_result() {
+    FileInput fileInput = PythonTestUtils.parse("def foo():\n  x = 1\n  return x");
+    PythonFile pythonFile = pythonFile("my_module.py");
+    var ctx = new PythonVisitorContext.Builder(fileInput, pythonFile).build();
+
+    FunctionDef functionDef = (FunctionDef) PythonTestUtils.getAllDescendant(fileInput, t -> t.is(Tree.Kind.FUNCDEF)).get(0);
+    LiveVariablesAnalysis first = ctx.lva(functionDef);
+    LiveVariablesAnalysis second = ctx.lva(functionDef);
+    assertThat(first).isSameAs(second);
   }
 
   @Test

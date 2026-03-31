@@ -20,6 +20,7 @@ import com.google.common.annotations.Beta;
 import com.sonar.sslr.api.RecognitionException;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,6 +38,7 @@ import org.sonar.plugins.python.api.tree.Name;
 import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.plugins.python.api.types.v2.ModuleType;
 import org.sonar.python.caching.CacheContextImpl;
+import org.sonar.python.cfg.fixpoint.LiveVariablesAnalysis;
 import org.sonar.python.cfg.fixpoint.ReachingDefinitionsAnalysis;
 import org.sonar.python.semantic.ProjectLevelSymbolTable;
 import org.sonar.python.semantic.SymbolTableBuilder;
@@ -58,8 +60,11 @@ public class PythonVisitorContext extends PythonInputFileContext {
   private final ProjectConfiguration projectConfiguration;
   private final CallGraph callGraph;
   private final Map<Tree, ControlFlowGraph> cfgMap;
+  private final Map<Tree, LiveVariablesAnalysis>  lvaMap;
   private final ReachingDefinitionsAnalysis reachingDefinitionsAnalysis;
   private final TypeTable typeTable;
+
+
 
   private PythonVisitorContext(FileInput rootTree, 
       PythonFile pythonFile, 
@@ -79,6 +84,7 @@ public class PythonVisitorContext extends PythonInputFileContext {
     this.callGraph = callGraph;
     this.cfgMap = cfgMap;
     this.reachingDefinitionsAnalysis = new ReachingDefinitionsAnalysis(pythonFile);
+    this.lvaMap = new HashMap<>();
     this.rootTree = rootTree;
     this.parsingException = null;
     this.typeTable = typeTable;
@@ -96,6 +102,7 @@ public class PythonVisitorContext extends PythonInputFileContext {
     this.callGraph = CallGraph.EMPTY;
     this.cfgMap = Map.of();
     this.reachingDefinitionsAnalysis = new ReachingDefinitionsAnalysis(pythonFile);
+    this.lvaMap = new HashMap<>();
     this.issues = new ArrayList<>();
     this.moduleType = null;
   }
@@ -142,8 +149,18 @@ public class PythonVisitorContext extends PythonInputFileContext {
     return callGraph;
   }
 
+  @CheckForNull
   public ControlFlowGraph cfg(Tree tree) {
     return cfgMap.get(tree);
+  }
+
+  @CheckForNull
+  public LiveVariablesAnalysis lva(Tree tree){
+    ControlFlowGraph cfg = cfg(tree);
+    if (cfg == null) {
+      return null;
+    }
+    return lvaMap.computeIfAbsent(tree, t -> LiveVariablesAnalysis.analyze(cfg));
   }
 
   public Optional<DjangoViewInfo> getDjangoViewInfo(String fqn) {

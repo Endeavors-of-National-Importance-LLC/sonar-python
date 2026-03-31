@@ -55,54 +55,10 @@ import static org.sonar.python.checks.utils.DeadStoreUtils.isUsedInSubFunction;
 @Rule(key = "S1854")
 public class DeadStoreCheck extends PythonSubscriptionCheck {
 
-  private static final String MESSAGE_TEMPLATE = "Remove this assignment to local variable '%s'; the value is never used.";
-
-  private static final String SECONDARY_MESSAGE_TEMPLATE = "'%s' is reassigned here.";
   public static final String QUICK_FIX_MESSAGE = "Remove the unused assignment";
-
+  private static final String MESSAGE_TEMPLATE = "Remove this assignment to local variable '%s'; the value is never used.";
+  private static final String SECONDARY_MESSAGE_TEMPLATE = "'%s' is reassigned here.";
   private boolean isTemplateVariablesAccessEnabled = false;
-
-  @Override
-  public void initialize(Context context) {
-    context.registerSyntaxNodeConsumer(Tree.Kind.FILE_INPUT, this::checkTemplateVariablesAccessEnabled);
-    context.registerSyntaxNodeConsumer(Tree.Kind.FUNCDEF, ctx -> {
-      FunctionDef functionDef = (FunctionDef) ctx.syntaxNode();
-      if (TreeUtils.hasDescendant(functionDef, tree -> tree.is(Tree.Kind.TRY_STMT))) {
-        return;
-      }
-      ControlFlowGraph cfg = ctx.cfg(functionDef);
-      if (cfg == null) {
-        return;
-      }
-      LiveVariablesAnalysis lva = LiveVariablesAnalysis.analyze(cfg);
-      cfg.blocks().forEach(block -> verifyBlock(ctx, block, lva.getLiveVariables(block), lva.getReadSymbols(), functionDef));
-    });
-  }
-
-  private void checkTemplateVariablesAccessEnabled(SubscriptionContext ctx) {
-    var importedNamesCollector = new ImportedNamesCollector();
-    importedNamesCollector.collect(ctx.syntaxNode());
-    isTemplateVariablesAccessEnabled = importedNamesCollector.anyMatches("pandas"::equals);
-  }
-
-  /**
-   * Bottom-up approach, keeping track of which variables will be read by successor elements.
-   */
-  private void verifyBlock(SubscriptionContext ctx, CfgBlock block, LiveVariablesAnalysis.LiveVariables blockLiveVariables,
-    Set<Symbol> readSymbols, FunctionDef functionDef) {
-
-    var stringLiteralValuesCollector = new StringLiteralValuesCollector();
-    if (isTemplateVariablesAccessEnabled) {
-      stringLiteralValuesCollector.collect(functionDef);
-    }
-    DeadStoreUtils.findUnnecessaryAssignments(block, blockLiveVariables, functionDef)
-      .stream()
-      // symbols should have at least one read usage (otherwise will be reported by S1481)
-      .filter(unnecessaryAssignment -> readSymbols.contains(unnecessaryAssignment.symbol))
-      .filter((unnecessaryAssignment -> !isException(unnecessaryAssignment.symbol, unnecessaryAssignment.element, functionDef,
-        stringLiteralValuesCollector)))
-      .forEach(unnecessaryAssignment -> raiseIssue(ctx, unnecessaryAssignment));
-  }
 
   private static void raiseIssue(SubscriptionContext ctx, DeadStoreUtils.UnnecessaryAssignment unnecessaryAssignment) {
     Tree element;
@@ -247,7 +203,6 @@ public class DeadStoreCheck extends PythonSubscriptionCheck {
     return symbol.usages().stream().anyMatch(u -> u.kind() == Usage.Kind.FUNC_DECLARATION);
   }
 
-
   private static boolean isExceptionForQuickFix(Statement tree) {
     switch (tree.getKind()) {
       // foo:str = bar
@@ -263,6 +218,51 @@ public class DeadStoreCheck extends PythonSubscriptionCheck {
       default:
         return false;
     }
+  }
+
+  @Override
+  public void initialize(Context context) {
+    context.registerSyntaxNodeConsumer(Tree.Kind.FILE_INPUT, this::checkTemplateVariablesAccessEnabled);
+    context.registerSyntaxNodeConsumer(Tree.Kind.FUNCDEF, ctx -> {
+      FunctionDef functionDef = (FunctionDef) ctx.syntaxNode();
+      if (TreeUtils.hasDescendant(functionDef, tree -> tree.is(Tree.Kind.TRY_STMT))) {
+        return;
+      }
+      ControlFlowGraph cfg = ctx.cfg(functionDef);
+      if (cfg == null) {
+        return;
+      }
+      LiveVariablesAnalysis lva = ctx.lva(functionDef);
+      if (lva == null) {
+        return;
+      }
+      cfg.blocks().forEach(block -> verifyBlock(ctx, block, lva.getLiveVariables(block), lva.getReadSymbols(), functionDef));
+    });
+  }
+
+  private void checkTemplateVariablesAccessEnabled(SubscriptionContext ctx) {
+    var importedNamesCollector = new ImportedNamesCollector();
+    importedNamesCollector.collect(ctx.syntaxNode());
+    isTemplateVariablesAccessEnabled = importedNamesCollector.anyMatches("pandas"::equals);
+  }
+
+  /**
+   * Bottom-up approach, keeping track of which variables will be read by successor elements.
+   */
+  private void verifyBlock(SubscriptionContext ctx, CfgBlock block, LiveVariablesAnalysis.LiveVariables blockLiveVariables,
+    Set<Symbol> readSymbols, FunctionDef functionDef) {
+
+    var stringLiteralValuesCollector = new StringLiteralValuesCollector();
+    if (isTemplateVariablesAccessEnabled) {
+      stringLiteralValuesCollector.collect(functionDef);
+    }
+    DeadStoreUtils.findUnnecessaryAssignments(block, blockLiveVariables, functionDef)
+      .stream()
+      // symbols should have at least one read usage (otherwise will be reported by S1481)
+      .filter(unnecessaryAssignment -> readSymbols.contains(unnecessaryAssignment.symbol))
+      .filter((unnecessaryAssignment -> !isException(unnecessaryAssignment.symbol, unnecessaryAssignment.element, functionDef,
+        stringLiteralValuesCollector)))
+      .forEach(unnecessaryAssignment -> raiseIssue(ctx, unnecessaryAssignment));
   }
 
   private static class SideEffectDetector extends BaseTreeVisitor {
