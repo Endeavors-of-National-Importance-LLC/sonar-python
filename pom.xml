@@ -113,6 +113,7 @@
     <woodstox.version>6.2.7</woodstox.version>
     <gson.version>2.13.2</gson.version>
     <jackson.version>2.21.0</jackson.version>
+    <rule.api.version>2.19.0.5763</rule.api.version>
 
     <!-- Advertise minimal required JRE version -->
     <jre.min.version>11</jre.min.version>
