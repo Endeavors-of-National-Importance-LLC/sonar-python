@@ -1,0 +1,23 @@
+{
+  "title": "Class fields should not be defined multiple times",
+  "type": "CODE_SMELL",
+  "code": {
+    "impacts": {
+      "MAINTAINABILITY": "MEDIUM"
+    },
+    "attribute": "CLEAR"
+  },
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "suspicious"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-8512",
+  "sqKey": "S8512",
+  "scope": "All",
+  "quickfix": "unknown"
+}

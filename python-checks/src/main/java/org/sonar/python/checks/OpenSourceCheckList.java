@@ -159,6 +159,7 @@ public class OpenSourceCheckList {
       ChildRouterBeforeParentRegistrationCheck.class,
       CipherBlockChainingCheck.class,
       ClassComplexityCheck.class,
+      ClassFieldDefinedMultipleTimesCheck.class,
       ClassMethodFirstArgumentNameCheck.class,
       ClassNameCheck.class,
       ClearTextProtocolsCheck.class,
