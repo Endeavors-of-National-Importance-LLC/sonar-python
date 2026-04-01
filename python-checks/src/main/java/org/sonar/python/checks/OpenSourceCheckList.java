@@ -404,6 +404,7 @@ public class OpenSourceCheckList {
       SkLearnEstimatorDontInitializeEstimatedValuesCheck.class,
       SleepZeroInAsyncCheck.class,
       SortedMinMaxCheck.class,
+      SlotsAssignmentCheck.class,
       SpecialMethodParamListCheck.class,
       SpecialMethodReturnTypeCheck.class,
       SQLQueriesCheck.class,
