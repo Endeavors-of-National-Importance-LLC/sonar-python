@@ -26,4 +26,8 @@ class PropertyMethodWithoutReturnCheckTest {
     PythonCheckVerifier.verify("src/test/resources/checks/propertyMethodWithoutReturn.py", new PropertyMethodWithoutReturnCheck());
   }
 
+  @Test
+  void test_shadowing_propery() {
+    PythonCheckVerifier.verifyNoIssue("src/test/resources/checks/propertyMethodWithoutReturnShadowingProperty.py", new PropertyMethodWithoutReturnCheck());
+  }
 }

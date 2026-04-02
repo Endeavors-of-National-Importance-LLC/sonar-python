@@ -28,7 +28,7 @@ import org.sonar.python.checks.utils.CheckUtils;
 public class PropertyMethodWithoutReturnCheck extends PythonSubscriptionCheck {
 
   private static final String MESSAGE = "Add a return statement to this property method.";
-  private static final TypeMatcher PROPERTY_MATCHER = TypeMatchers.isType("builtins.property");
+  private static final TypeMatcher PROPERTY_MATCHER = TypeMatchers.isType("property");
   private static final TypeMatcher ABSTRACT_METHOD_MATCHER = TypeMatchers.isType("abc.abstractmethod");
 
   @Override
