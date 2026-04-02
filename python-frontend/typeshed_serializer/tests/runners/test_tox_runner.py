@@ -617,7 +617,91 @@ class ToxRunnerTest(unittest.TestCase):
                 tox_runner.detect_required_serializations(fail_fast=True)
 
             self.assertEqual(
-                str(error.exception), "INCONSISTENT RESOURCE FOLDER BINARY CHECKSUMS"
+                str(error.exception), "INCONSISTENT RESOURCE FOLDER CHECKSUMS"
+            )
+
+    def test_detect_required_serializations_fail_fast_source_inconsistent(self):
+        mock_resources_folders = {
+            "custom": {
+                "serializer": "custom",
+                "source_path": "custom",
+            }
+        }
+
+        with (
+            mock.patch(
+                f"{self.MODULE_NAME}.RESOURCES_FOLDERS",
+                mock_resources_folders,
+            ),
+            mock.patch(
+                f"{self.MODULE_NAME}.fetch_resources_subfolder_files"
+            ) as mock_resources_files,
+            mock.patch(self.COMPUTE_CHECKSUM_FUNCTION) as mocked_checksum,
+            mock.patch(
+                f"{self.MODULE_NAME}.fetch_binary_files_for_folder"
+            ) as mock_binary_files,
+            mock.patch(
+                f"{self.MODULE_NAME}.read_previous_folder_checksum"
+            ) as mock_read_checksum,
+        ):
+            mock_resources_files.return_value = [os.path.join("custom", "test.pyi")]
+            mock_binary_files.return_value = [os.path.join("custom_protobuf", "test.protobuf")]
+            mocked_checksum.side_effect = [
+                "456",
+                "123",
+            ]
+            mock_read_checksum.return_value = (
+                "999",
+                "123",
+            )
+
+            with self.assertRaises(RuntimeError) as error:
+                tox_runner.detect_required_serializations(fail_fast=True)
+
+            self.assertEqual(
+                str(error.exception), "INCONSISTENT RESOURCE FOLDER CHECKSUMS"
+            )
+
+    def test_detect_required_serializations_fail_fast_source_and_binary_inconsistent(self):
+        mock_resources_folders = {
+            "custom": {
+                "serializer": "custom",
+                "source_path": "custom",
+            }
+        }
+
+        with (
+            mock.patch(
+                f"{self.MODULE_NAME}.RESOURCES_FOLDERS",
+                mock_resources_folders,
+            ),
+            mock.patch(
+                f"{self.MODULE_NAME}.fetch_resources_subfolder_files"
+            ) as mock_resources_files,
+            mock.patch(self.COMPUTE_CHECKSUM_FUNCTION) as mocked_checksum,
+            mock.patch(
+                f"{self.MODULE_NAME}.fetch_binary_files_for_folder"
+            ) as mock_binary_files,
+            mock.patch(
+                f"{self.MODULE_NAME}.read_previous_folder_checksum"
+            ) as mock_read_checksum,
+        ):
+            mock_resources_files.return_value = [os.path.join("custom", "test.pyi")]
+            mock_binary_files.return_value = [os.path.join("custom_protobuf", "test.protobuf")]
+            mocked_checksum.side_effect = [
+                "456",
+                "789",
+            ]
+            mock_read_checksum.return_value = (
+                "999",
+                "123",
+            )
+
+            with self.assertRaises(RuntimeError) as error:
+                tox_runner.detect_required_serializations(fail_fast=True)
+
+            self.assertEqual(
+                str(error.exception), "INCONSISTENT RESOURCE FOLDER CHECKSUMS"
             )
 
     def test_detect_required_serializations_no_fail_fast_binary_inconsistent(self):
@@ -665,8 +749,46 @@ class ToxRunnerTest(unittest.TestCase):
             result = tox_runner.detect_required_serializations(fail_fast=False)
             self.assertEqual(result, ["custom"])
 
-    def test_main_fail_fast_resource_folder_binary_inconsistent(self):
-        # Test main function fail-fast when resource folder has binary inconsistency
+    def test_detect_required_serializations_no_fail_fast_source_and_binary_inconsistent(self):
+        mock_resources_folders = {
+            "custom": {
+                "serializer": "custom",
+                "source_path": "custom",
+            }
+        }
+
+        with (
+            mock.patch(
+                f"{self.MODULE_NAME}.RESOURCES_FOLDERS",
+                mock_resources_folders,
+            ),
+            mock.patch(
+                f"{self.MODULE_NAME}.fetch_resources_subfolder_files"
+            ) as mock_resources_files,
+            mock.patch(self.COMPUTE_CHECKSUM_FUNCTION) as mocked_checksum,
+            mock.patch(
+                f"{self.MODULE_NAME}.fetch_binary_files_for_folder"
+            ) as mock_binary_files,
+            mock.patch(
+                f"{self.MODULE_NAME}.read_previous_folder_checksum"
+            ) as mock_read_checksum,
+        ):
+            mock_resources_files.return_value = [os.path.join("custom", "test.pyi")]
+            mock_binary_files.return_value = [os.path.join("custom_protobuf", "test.protobuf")]
+            mocked_checksum.side_effect = [
+                "456",
+                "789",
+            ]
+            mock_read_checksum.return_value = (
+                "999",
+                "123",
+            )
+
+            result = tox_runner.detect_required_serializations(fail_fast=False)
+            self.assertEqual(result, ["custom"])
+
+    def test_main_fail_fast_resource_folder_checksum_inconsistent(self):
+        # Test main function fail-fast when resource folder checksums are inconsistent
         source_checksum = "123"
 
         with (
@@ -687,7 +809,7 @@ class ToxRunnerTest(unittest.TestCase):
 
             # Resource folder check raises RuntimeError
             mock_check_changes.side_effect = RuntimeError(
-                "INCONSISTENT RESOURCE FOLDER BINARY CHECKSUMS"
+                "INCONSISTENT RESOURCE FOLDER CHECKSUMS"
             )
 
             # Should propagate the RuntimeError
@@ -695,7 +817,7 @@ class ToxRunnerTest(unittest.TestCase):
                 tox_runner.main(fail_fast=True)
 
             self.assertEqual(
-                str(error.exception), "INCONSISTENT RESOURCE FOLDER BINARY CHECKSUMS"
+                str(error.exception), "INCONSISTENT RESOURCE FOLDER CHECKSUMS"
             )
             # Should not call subprocess
             mocked_subprocess.run.assert_not_called()
@@ -891,4 +1013,3 @@ class ToxRunnerTest(unittest.TestCase):
             
             self.assertFalse(result)
             mock_logger.info.assert_any_call('BINARY FILES UNCHANGED in folder: importer - Computed over 2 files - Checksum: same_checksum')
-

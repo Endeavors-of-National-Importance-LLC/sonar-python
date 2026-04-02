@@ -32,7 +32,7 @@ tox -e py39 -- tests/runners/test_tox_runner.py::ToxRunnerTest::test_dry_run_unc
 python runners/tox_runner.py --dry_run true 
 ```
 
-Can also be run in fail fast mode, to reflect behaviour in CI (where failStubGenerationFast is true)
+Can also be run in fail fast mode, to reflect the checksum validation used by the QA workflow
 
 ```bash
 python runners/tox_runner.py --dry_run true --fail_fast true  

@@ -216,9 +216,9 @@ def detect_required_serializations(fail_fast=False) -> List[str]:
         binary_changed = compute_and_compare_checksums("BINARY", folder_name, binary_files, read_file, previous_binary_checksum)
 
         if ressources_changed or binary_changed:
-            # Check for binary inconsistency (binary changed but source didn't)
-            if binary_changed and not ressources_changed and fail_fast:
-                raise RuntimeError('INCONSISTENT RESOURCE FOLDER BINARY CHECKSUMS')
+            # In CI fail-fast mode, the committed checksums must already match the tracked tree.
+            if fail_fast:
+                raise RuntimeError('INCONSISTENT RESOURCE FOLDER CHECKSUMS')
             ressources_that_needs_serialization.append(folder_config['serializer'])
 
     return ressources_that_needs_serialization
