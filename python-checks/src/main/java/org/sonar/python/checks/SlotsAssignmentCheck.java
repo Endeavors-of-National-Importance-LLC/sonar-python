@@ -110,6 +110,7 @@ public class SlotsAssignmentCheck extends PythonSubscriptionCheck {
     }
 
     // Check each instance method
+    String className = classDef.name().name();
     for (FunctionDef functionDef : TreeUtils.topLevelFunctionDefs(classDef)) {
       PythonType funcType = functionDef.name().typeV2();
       if (!(funcType instanceof FunctionType ft) || !ft.isInstanceMethod()) {
@@ -118,7 +119,7 @@ public class SlotsAssignmentCheck extends PythonSubscriptionCheck {
       List<Parameter> params = TreeUtils.positionalParameters(functionDef);
       if (!params.isEmpty()) {
         String selfName = params.get(0).name().name();
-        SelfAttributeAssignmentVisitor visitor = new SelfAttributeAssignmentVisitor(selfName, allowedSlots, ctx);
+        SelfAttributeAssignmentVisitor visitor = new SelfAttributeAssignmentVisitor(selfName, allowedSlots, className, ctx);
         functionDef.body().accept(visitor);
       }
     }
@@ -298,11 +299,13 @@ public class SlotsAssignmentCheck extends PythonSubscriptionCheck {
   private static class SelfAttributeAssignmentVisitor extends BaseTreeVisitor {
     private final String selfName;
     private final Set<String> allowedSlots;
+    private final String className;
     private final SubscriptionContext ctx;
 
-    SelfAttributeAssignmentVisitor(String selfName, Set<String> allowedSlots, SubscriptionContext ctx) {
+    SelfAttributeAssignmentVisitor(String selfName, Set<String> allowedSlots, String className, SubscriptionContext ctx) {
       this.selfName = selfName;
       this.allowedSlots = allowedSlots;
+      this.className = className;
       this.ctx = ctx;
     }
 
@@ -346,9 +349,23 @@ public class SlotsAssignmentCheck extends PythonSubscriptionCheck {
         return;
       }
       String attrName = qualifiedExpr.name().name();
-      if (!allowedSlots.contains(attrName)) {
+      if (!allowedSlots.contains(attrName) && !allowedSlots.contains(mangledName(attrName))) {
         ctx.addIssue(qualifiedExpr.name(), String.format(MESSAGE, attrName));
       }
+    }
+
+    /**
+     * Returns the name-mangled form of a private attribute name within this class.
+     * Python mangles names starting with two underscores (but not ending with two underscores)
+     * by stripping leading underscores from the class name and prepending "_ClassName".
+     * For example, "__den" in class "_Rat" becomes "_Rat__den" (not "__Rat__den").
+     * See: https://docs.python.org/3/reference/expressions.html#atom-identifiers
+     */
+    private String mangledName(String attrName) {
+      if (attrName.startsWith("__") && !attrName.endsWith("__")) {
+        return "_" + className.replaceAll("^_+", "") + attrName;
+      }
+      return attrName;
     }
   }
 }

@@ -802,3 +802,31 @@ class ConcatenatedSlots:
     def __init__(self):
         self.x = 1
         self.missing = 2  # FN: __slots__ is a binary expression, not a literal
+
+# Compliant: __slots__ uses mangled names and assignments use double-underscore syntax
+class Rat(object):
+    __slots__ = ['_Rat__num', '_Rat__den']
+
+    def __init__(self, num=0, den=1):
+        self.__num = num  # Compliant: stored as _Rat__num, which is in __slots__
+        self.__den = den  # Compliant: stored as _Rat__den, which is in __slots__
+
+
+# Issue raised when attribute is not in slots even with partial mangled entries
+class RatMissing(object):
+    __slots__ = ['_RatMissing__num']
+
+    def __init__(self, num=0, den=1):
+        self.__num = num  # Compliant: stored as _RatMissing__num, which is in __slots__
+        self.__den = den  # Noncompliant {{Add "__den" to the class's "__slots__".}}
+#            ^^^^^
+
+
+# Compliant: class name starts with underscore — mangling strips leading underscores from class name
+# Python mangles _Rat.__den to _Rat__den (not __Rat__den)
+class _Rat(object):
+    __slots__ = ['_Rat__num', '_Rat__den']
+
+    def __init__(self, num=0, den=1):
+        self.__num = num  # Compliant: stored as _Rat__num, which is in __slots__
+        self.__den = den  # Compliant: stored as _Rat__den, which is in __slots__
