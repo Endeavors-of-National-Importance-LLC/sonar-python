@@ -145,3 +145,31 @@ class BaseShortSignature:
 class DerivedLongerSignature(BaseShortSignature):
     def execute(self, ExtraParam):  # Noncompliant
         pass
+
+
+import marimo
+
+app = marimo.App()
+
+
+@app.cell
+def _():
+    TSHIRT_ORDER = ["XS", "S", "M", "L", "XL", "XXL"]
+    return TSHIRT_ORDER,
+
+
+@app.cell
+def _(TSHIRT_ORDER):
+    filtered = [size for size in TSHIRT_ORDER if size != "XXL"]
+    return filtered,
+
+
+@app.cell(hide_code=True)
+def _(API_KEY, DB_CONFIG):
+    connection_string = f"host={DB_CONFIG['host']}?key={API_KEY}"
+    return connection_string,
+
+
+@app.function
+def helper(INPUT_DATA):
+    return INPUT_DATA

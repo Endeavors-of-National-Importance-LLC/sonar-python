@@ -40,6 +40,7 @@ import org.sonar.plugins.python.api.tree.Parameter;
 import org.sonar.plugins.python.api.tree.SubscriptionExpression;
 import org.sonar.plugins.python.api.tree.Tree;
 import org.sonar.plugins.python.api.types.v2.PythonType;
+import org.sonar.python.checks.utils.MarimoUtils;
 import org.sonar.python.semantic.SymbolUtils;
 import org.sonar.python.tree.TreeUtils;
 import org.sonar.python.types.v2.TypeCheckBuilder;
@@ -170,7 +171,7 @@ public class LocalVariableAndParameterNameConventionCheck extends PythonSubscrip
       if (name.length() <= 1) {
         return;
       }
-    } else if (kind == UsageV2.Kind.PARAMETER && isParameterNameFromOverriddenMethod(usage, name)) {
+    } else if (kind == UsageV2.Kind.PARAMETER && (isParameterNameFromOverriddenMethod(usage, name) || MarimoUtils.isTreeInMarimoDecoratedFunction(usage.tree(), ctx))) {
       return;
     }
     ctx.addIssue(usage.tree(), String.format(MESSAGE, type, name, format));
