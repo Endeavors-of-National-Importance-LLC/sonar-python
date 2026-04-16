@@ -306,6 +306,7 @@ public class OpenSourceCheckList {
       LambdaAssignmentCheck.class,
       LdapAuthenticationCheck.class,
       LineLengthCheck.class,
+      ListIterableFirstElementCheck.class,
       LocalVariableAndParameterNameConventionCheck.class,
       LoggersConfigurationCheck.class,
       LongIntegerWithLowercaseSuffixUsageCheck.class,

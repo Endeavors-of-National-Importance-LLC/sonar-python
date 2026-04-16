@@ -1,0 +1,24 @@
+{
+  "title": "\"list(...)[0]\" should not be used to get the first element",
+  "type": "CODE_SMELL",
+  "status": "ready",
+  "remediation": {
+    "func": "Constant\/Issue",
+    "constantCost": "5min"
+  },
+  "tags": [
+    "performance",
+    "pythonic"
+  ],
+  "defaultSeverity": "Major",
+  "ruleSpecification": "RSPEC-8519",
+  "sqKey": "S8519",
+  "scope": "All",
+  "quickfix": "targeted",
+  "code": {
+    "impacts": {
+      "RELIABILITY": "MEDIUM"
+    },
+    "attribute": "EFFICIENT"
+  }
+}

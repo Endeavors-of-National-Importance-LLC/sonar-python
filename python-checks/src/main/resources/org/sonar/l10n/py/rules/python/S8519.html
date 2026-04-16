@@ -1,0 +1,56 @@
+<p>This rule raises an issue when code uses <code>list(iterable)[0]</code> to retrieve the first element of an iterable.</p>
+<h2>Why is this an issue?</h2>
+<p>Using <code>list(iterable)[0]</code> to get the first element of an iterable is inefficient because it materializes the entire iterable into a list
+in memory before accessing the first element.</p>
+<p>This approach has two main problems:</p>
+<ul>
+  <li><strong>Memory overhead</strong>: The entire iterable is converted to a list, consuming memory proportional to its size. For large iterables or
+  generators, this can waste significant memory.</li>
+  <li><strong>Time complexity</strong>: Creating the list is an O(n) operation, where n is the number of elements in the iterable. You pay the cost of
+  iterating through all elements even though you only need the first one.</li>
+</ul>
+<p>The pattern is particularly problematic with:</p>
+<ul>
+  <li>large datasets or database query results</li>
+  <li>generator expressions and generator functions</li>
+  <li>file readers or network streams</li>
+  <li>infinite iterables, which will cause the program to hang or crash</li>
+</ul>
+<h3>What is the potential impact?</h3>
+<ul>
+  <li>applications may become unresponsive or crash due to out-of-memory errors when processing large datasets</li>
+  <li>execution time increases unnecessarily, degrading user experience in performance-critical paths</li>
+  <li>infinite iterables cannot be consumed at all, causing the program to hang</li>
+  <li>infrastructure costs grow as data size increases due to wasted memory and CPU cycles</li>
+</ul>
+<h2>How to fix it</h2>
+<p>Replace <code>list(iterable)[0]</code> with <code>next(iter(iterable))</code> to retrieve only the first element without materializing the entire
+iterable into a list. The <code>iter()</code> function creates an iterator, and <code>next()</code> retrieves the next item from that iterator, in
+O(1) time and without allocating memory for the entire collection.</p>
+<p>Note that the two expressions differ in the exception raised when the iterable is empty: <code>list(iterable)[0]</code> raises
+<code>IndexError</code>, while <code>next(iter(iterable))</code> raises <code>StopIteration</code>. If the surrounding code catches
+<code>IndexError</code>, update the handler after applying this fix.</p>
+<h3>Code examples</h3>
+<h4>Noncompliant code example</h4>
+<pre data-diff-id="1" data-diff-type="noncompliant">
+def get_first_user(users):
+    return list(users)[0]  # Noncompliant
+</pre>
+<h4>Compliant solution</h4>
+<pre data-diff-id="1" data-diff-type="compliant">
+def get_first_user(users):
+    return next(iter(users))
+</pre>
+<h2>Resources</h2>
+<h3>Documentation</h3>
+<ul>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/functions.html#next"><code>next()</code> built-in function</a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/library/functions.html#iter"><code>iter()</code> built-in function</a></li>
+  <li>Python Documentation - <a href="https://docs.python.org/3/glossary.html#term-iterator">Iterator</a></li>
+</ul>
+<h3>External coding guidelines</h3>
+<ul>
+  <li>Ruff - <a href="https://docs.astral.sh/ruff/rules/unnecessary-iterable-allocation-for-first-element/">RUF015 - Unnecessary iterable allocation
+  for first element</a></li>
+</ul>
+
